@@ -34,60 +34,76 @@ def overlaps(start1, end1, start2, end2):
 
 # --- FIND SLOT ---
 def find_slot(df, duration, surgeon):
-    ots = ["OT1", "OT2", "OT3"]
+    ots = ["OT1", "OT2"]
 
-    start_day = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-    last_start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
-    end_day = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+    def is_valid_day(date):
+        return date.weekday() in [0, 2, 4]  # Mon=0, Wed=2, Fri=4
 
-    for ot in ots:
-        current_time = start_day
+    search_date = datetime.now().date()
 
-        ot_cases = df[(df["OT"] == ot) & (df["Date"] == str(start_day.date()))]
-        ot_cases = ot_cases.sort_values(by="Start")
+    # Try next 14 days max
+    for _ in range(14):
 
-        for _, case in ot_cases.iterrows():
-            case_start = get_datetime(case["Date"], case["Start"])
-            case_end = get_datetime(case["Date"], case["End"])
+        if not is_valid_day(search_date):
+            search_date += timedelta(days=1)
+            continue
 
+        start_day = datetime.combine(search_date, datetime.min.time()).replace(hour=8)
+        last_start_time = datetime.combine(search_date, datetime.min.time()).replace(hour=14)
+        end_day = datetime.combine(search_date, datetime.min.time()).replace(hour=18)
+
+        for ot in ots:
+            current_time = start_day
+
+            ot_cases = df[(df["OT"] == ot) & (df["Date"] == str(search_date))]
+            ot_cases = ot_cases.sort_values(by="Start")
+
+            for _, case in ot_cases.iterrows():
+                case_start = get_datetime(case["Date"], case["Start"])
+                case_end = get_datetime(case["Date"], case["End"])
+
+                proposed_end = current_time + timedelta(minutes=duration)
+
+                if current_time > last_start_time:
+                    break
+
+                if proposed_end <= case_start:
+                    # Check surgeon conflict
+                    conflict = False
+                    for _, s_case in df[df["Date"] == str(search_date)].iterrows():
+                        s_start = get_datetime(s_case["Date"], s_case["Start"])
+                        s_end = get_datetime(s_case["Date"], s_case["End"])
+
+                        if s_case["Surgeon"].lower() == surgeon.lower():
+                            if overlaps(current_time, proposed_end, s_start, s_end):
+                                conflict = True
+                                break
+
+                    if not conflict:
+                        return ot, current_time
+
+                current_time = max(current_time, case_end)
+
+            # Check end-of-day slot
             proposed_end = current_time + timedelta(minutes=duration)
 
-            if current_time > last_start_time:
-                break
+            if proposed_end <= end_day and current_time <= last_start_time:
+                conflict = False
 
-            if proposed_end <= case_start:
-                surgeon_conflict = False
-
-                for _, s_case in df[df["Date"] == str(start_day.date())].iterrows():
+                for _, s_case in df[df["Date"] == str(search_date)].iterrows():
                     s_start = get_datetime(s_case["Date"], s_case["Start"])
                     s_end = get_datetime(s_case["Date"], s_case["End"])
 
                     if s_case["Surgeon"].lower() == surgeon.lower():
                         if overlaps(current_time, proposed_end, s_start, s_end):
-                            surgeon_conflict = True
+                            conflict = True
                             break
 
-                if not surgeon_conflict:
+                if not conflict:
                     return ot, current_time
 
-            current_time = max(current_time, case_end)
-
-        proposed_end = current_time + timedelta(minutes=duration)
-
-        if proposed_end <= end_day and current_time <= last_start_time:
-            surgeon_conflict = False
-
-            for _, s_case in df[df["Date"] == str(start_day.date())].iterrows():
-                s_start = get_datetime(s_case["Date"], s_case["Start"])
-                s_end = get_datetime(s_case["Date"], s_case["End"])
-
-                if s_case["Surgeon"].lower() == surgeon.lower():
-                    if overlaps(current_time, proposed_end, s_start, s_end):
-                        surgeon_conflict = True
-                        break
-
-            if not surgeon_conflict:
-                return ot, current_time
+        # Move to next day
+        search_date += timedelta(days=1)
 
     return None, None
 
