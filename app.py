@@ -130,3 +130,27 @@ today = str(datetime.now().date())
 today_df = df[df["Date"] == today]
 
 st.dataframe(today_df.sort_values(by=["OT", "Start"]))
+st.subheader("Delete Surgery")
+
+today = str(datetime.now().date())
+today_df = df[df["Date"] == today].reset_index()
+
+if not today_df.empty:
+    # Create a readable label for each case
+    today_df["Label"] = today_df.apply(
+        lambda row: f"{row['Start']} | {row['OT']} | {row['Patient']} | {row['Procedure']}",
+        axis=1
+    )
+
+    selected = st.selectbox("Select case to delete", today_df["Label"])
+
+    if st.button("Delete Selected Case"):
+        index_to_delete = today_df[today_df["Label"] == selected]["index"].values[0]
+
+        df = df.drop(index_to_delete)
+        df.to_csv("schedule.csv", index=False)
+
+        st.success("Case deleted successfully")
+        st.rerun()
+else:
+    st.info("No cases scheduled today")
