@@ -40,13 +40,13 @@ def find_slot(df, duration, surgeon):
 last_start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
 end_day = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
 
-    for ot in ots:
+for ot in ots:
         current_time = start_day
 
         ot_cases = df[(df["OT"] == ot) & (df["Date"] == str(start_day.date()))]
         ot_cases = ot_cases.sort_values(by="Start")
 
-        for _, case in ot_cases.iterrows():
+for _, case in ot_cases.iterrows():
             case_start = get_datetime(case["Date"], case["Start"])
             case_end = get_datetime(case["Date"], case["End"])
 
