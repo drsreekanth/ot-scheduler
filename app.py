@@ -54,7 +54,7 @@ for _, case in ot_cases.iterrows():
 if current_time > last_start_time:
     break
             # Check OT gap
-           if proposed_end <= case_start and current_time <= last_start_time:
+if proposed_end <= case_start and current_time <= last_start_time:
                 # Check surgeon conflict
                 surgeon_conflict = False
 
