@@ -37,7 +37,8 @@ def find_slot(df, duration, surgeon):
     ots = ["OT1", "OT2", "OT3"]
 
     start_day = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-    end_day = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+last_start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
+end_day = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
 
     for ot in ots:
         current_time = start_day
@@ -50,9 +51,10 @@ def find_slot(df, duration, surgeon):
             case_end = get_datetime(case["Date"], case["End"])
 
             proposed_end = current_time + timedelta(minutes=duration)
-
+if current_time > last_start_time:
+    break
             # Check OT gap
-            if proposed_end <= case_start:
+           if proposed_end <= case_start and current_time <= last_start_time:
                 # Check surgeon conflict
                 surgeon_conflict = False
 
@@ -72,7 +74,7 @@ def find_slot(df, duration, surgeon):
 
         # Check end of day slot
         proposed_end = current_time + timedelta(minutes=duration)
-        if proposed_end <= end_day:
+        if proposed_end <= end_day and current_time <= last_start_time:
             surgeon_conflict = False
 
             for _, s_case in df[df["Date"] == str(start_day.date())].iterrows():
