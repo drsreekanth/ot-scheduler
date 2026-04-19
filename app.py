@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta
 
 st.title("Smart OT Scheduler")
 
@@ -10,7 +10,7 @@ try:
 except:
     df = pd.DataFrame(columns=["Date", "Start", "End", "OT", "Surgeon", "Patient", "Procedure", "Duration"])
 
-# --- BASIC DURATION MAP (you can expand this) ---
+# --- DURATION MAP ---
 DURATION_MAP = {
     "mastectomy": 120,
     "lap chole": 60,
@@ -22,11 +22,20 @@ def get_duration(procedure):
     for key in DURATION_MAP:
         if key in procedure.lower():
             return DURATION_MAP[key]
-    return 90  # default
+    return 90
 
-# --- FIND NEXT AVAILABLE SLOT ---
-def find_slot(df, duration):
+# --- CONVERT ROW TO DATETIME ---
+def get_datetime(date_str, time_str):
+    return datetime.strptime(date_str + " " + time_str, "%Y-%m-%d %H:%M")
+
+# --- CHECK OVERLAP ---
+def overlaps(start1, end1, start2, end2):
+    return start1 < end2 and end1 > start2
+
+# --- FIND SLOT ---
+def find_slot(df, duration, surgeon):
     ots = ["OT1", "OT2", "OT3"]
+
     start_day = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
     end_day = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
 
@@ -37,21 +46,51 @@ def find_slot(df, duration):
         ot_cases = ot_cases.sort_values(by="Start")
 
         for _, case in ot_cases.iterrows():
-            case_start = datetime.strptime(case["Start"], "%H:%M")
-            case_end = datetime.strptime(case["End"], "%H:%M")
+            case_start = get_datetime(case["Date"], case["Start"])
+            case_end = get_datetime(case["Date"], case["End"])
 
-            if current_time + timedelta(minutes=duration) <= case_start:
-                return ot, current_time
+            proposed_end = current_time + timedelta(minutes=duration)
+
+            # Check OT gap
+            if proposed_end <= case_start:
+                # Check surgeon conflict
+                surgeon_conflict = False
+
+                for _, s_case in df[df["Date"] == str(start_day.date())].iterrows():
+                    s_start = get_datetime(s_case["Date"], s_case["Start"])
+                    s_end = get_datetime(s_case["Date"], s_case["End"])
+
+                    if s_case["Surgeon"].lower() == surgeon.lower():
+                        if overlaps(current_time, proposed_end, s_start, s_end):
+                            surgeon_conflict = True
+                            break
+
+                if not surgeon_conflict:
+                    return ot, current_time
 
             current_time = max(current_time, case_end)
 
-        if current_time + timedelta(minutes=duration) <= end_day:
-            return ot, current_time
+        # Check end of day slot
+        proposed_end = current_time + timedelta(minutes=duration)
+        if proposed_end <= end_day:
+            surgeon_conflict = False
+
+            for _, s_case in df[df["Date"] == str(start_day.date())].iterrows():
+                s_start = get_datetime(s_case["Date"], s_case["Start"])
+                s_end = get_datetime(s_case["Date"], s_case["End"])
+
+                if s_case["Surgeon"].lower() == surgeon.lower():
+                    if overlaps(current_time, proposed_end, s_start, s_end):
+                        surgeon_conflict = True
+                        break
+
+            if not surgeon_conflict:
+                return ot, current_time
 
     return None, None
 
 # --- INPUT ---
-st.subheader("Add Case (Auto Scheduling)")
+st.subheader("Auto Schedule Case")
 
 patient = st.text_input("Patient Name")
 procedure = st.text_input("Procedure")
@@ -60,7 +99,7 @@ surgeon = st.text_input("Surgeon")
 if st.button("Find Slot & Schedule"):
     if patient and procedure and surgeon:
         duration = get_duration(procedure)
-        ot, start_time = find_slot(df, duration)
+        ot, start_time = find_slot(df, duration, surgeon)
 
         if ot:
             end_time = start_time + timedelta(minutes=duration)
