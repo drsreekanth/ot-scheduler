@@ -70,7 +70,7 @@ if proposed_end <= case_start and current_time <= last_start_time:
                 if not surgeon_conflict:
                     return ot, current_time
 
-            current_time = max(current_time, case_end)
+    current_time = max(current_time, case_end)
 
         # Check end of day slot
         proposed_end = current_time + timedelta(minutes=duration)
