@@ -37,25 +37,25 @@ def find_slot(df, duration, surgeon):
     ots = ["OT1", "OT2", "OT3"]
 
     start_day = datetime.now().replace(hour=8, minute=0, second=0, microsecond=0)
-last_start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
-end_day = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
+    last_start_time = datetime.now().replace(hour=14, minute=0, second=0, microsecond=0)
+    end_day = datetime.now().replace(hour=18, minute=0, second=0, microsecond=0)
 
-for ot in ots:
+    for ot in ots:
         current_time = start_day
 
         ot_cases = df[(df["OT"] == ot) & (df["Date"] == str(start_day.date()))]
         ot_cases = ot_cases.sort_values(by="Start")
 
-for _, case in ot_cases.iterrows():
+        for _, case in ot_cases.iterrows():
             case_start = get_datetime(case["Date"], case["Start"])
             case_end = get_datetime(case["Date"], case["End"])
 
             proposed_end = current_time + timedelta(minutes=duration)
-if current_time > last_start_time:
-    break
-            # Check OT gap
-if proposed_end <= case_start and current_time <= last_start_time:
-                # Check surgeon conflict
+
+            if current_time > last_start_time:
+                break
+
+            if proposed_end <= case_start:
                 surgeon_conflict = False
 
                 for _, s_case in df[df["Date"] == str(start_day.date())].iterrows():
@@ -70,10 +70,10 @@ if proposed_end <= case_start and current_time <= last_start_time:
                 if not surgeon_conflict:
                     return ot, current_time
 
-    current_time = max(current_time, case_end)
+            current_time = max(current_time, case_end)
 
-        # Check end of day slot
         proposed_end = current_time + timedelta(minutes=duration)
+
         if proposed_end <= end_day and current_time <= last_start_time:
             surgeon_conflict = False
 
