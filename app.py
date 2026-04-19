@@ -172,3 +172,13 @@ if not today_df.empty:
         st.rerun()
 else:
     st.info("No cases scheduled today")
+st.subheader("View Schedule by Date")
+
+selected_date = st.date_input("Select Date to View")
+
+selected_df = df[df["Date"] == str(selected_date)]
+
+if not selected_df.empty:
+    st.dataframe(selected_df.sort_values(by=["OT", "Start"]))
+else:
+    st.info("No cases scheduled on this date")
